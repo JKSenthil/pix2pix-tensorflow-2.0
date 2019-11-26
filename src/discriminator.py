@@ -1,10 +1,10 @@
-import tensorflow as tf
-from tensorflow.keras import Model
 import numpy as np
-"""
-Class for discriminator.
-"""
+import tensorflow as tf
+
 class Discriminator(tf.keras.Model):
+    """
+    Class for the pix2pix discriminator.
+    """
     def __init__(self):
         """
         Definition of Discriminator model.
