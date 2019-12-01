@@ -1,5 +1,7 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras.layers import Layer, Conv2D, BatchNormalization, ReLU, Lambda, LeakyReLU, \
+    Conv2DTranspose
 
 class Generator(tf.keras.Model):
     """
@@ -44,3 +46,37 @@ class Generator(tf.keras.Model):
         """
         #TODO Add loss function, as defined in paper.
         pass
+
+# Code adapted from:
+# https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
+class UnetSkipConnectionBlock(Layer):
+    def __init__(self, inner_nc, outer_nc, submodule=None, outermost=False):
+        Super(super(MyLayer, self).__init__()
+        innermost = submodule is None
+        assert(not (innermost and outermost))
+        self.outermost = outermost
+        self.submodule = submodule if not innermost else Lambda(lambda x: x)
+        
+        self.downrelu = Lambda(lambda x: x)
+        self.downconv = Conv2D(inner_nc, kernel_size=(4, 4), strides=(2, 2), padding="same")
+        self.downnorm = Lambda(lambda x: x)
+
+        self.uprelu = ReLU()
+        self.upconv = Conv2dTranspose(outer_nc, kernel_size=(4, 4), strides=(2, 2), padding="same")
+        self.upnorm = BatchNormalization()
+
+        if outermost:
+            self.upnorm = tf.math.tanh
+        else:
+            self.downrelu = LeakyReLU(0.2)
+            if not innermost:
+                self.downnorm = BatchNormalization()
+        
+
+    @tf.function
+    def call(self, inputs):
+        down = self.downnorm(self.downconv(self.downrelu(inputs)))
+        outputs = self.upnorm(self.upconv(self.uprelu(self.submodule(down))))
+        if self.outermost:
+            return outputs
+        return tf.concat((inputs, outputs), 1)
