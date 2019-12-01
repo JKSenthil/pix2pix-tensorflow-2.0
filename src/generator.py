@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Layer, Conv2D, BatchNormalization, ReLU, Lambda, LeakyReLU, \
-    Conv2DTranspose
+    Conv2DTranspose, Dropout
 
 class Generator(tf.keras.Model):
     """
@@ -47,11 +47,65 @@ class Generator(tf.keras.Model):
         #TODO Add loss function, as defined in paper.
         pass
 
+# Code adapted from the Convolutional Autoendoer lab:
+# https://drive.google.com/drive/u/0/folders/1mWRiFZE2ClSbE4Fxp9FgWH-7bwP3lvxQ
+class Conv_BatchNorm_RelU(Layer):
+    def __init__(self, filters, is_transpose, use_dropout=False, **kwargs):
+        super(MyLayer, self).__init__(**kwargs)
+        if is_transpose: 
+            self.conv = Conv2DTranspose(
+                filters=filters, kernel_size=(4, 4), strides=(2, 2), padding="same")
+        else:
+            self.conv = Conv2D(
+                filters=filters, kernel_size=(4, 4), strides=(2, 2), padding="same")
+        self.batchnorm = BatchNormalization()
+        self.dropout = Dropout(0.5) if use_dropout else Lambda(lambda x: x)
+        self.relu = Activation("relu")
+
+    @tf.function
+    def call(self, inputs):
+        return self.relu(self.dropout(self.batchnorm(self.conv(inputs))))
+
+class Encoder(tf.keras.layers.Layer):
+    def __init__(self, ngf=64, **kwargs):
+       super(Encoder, self).__init__(**kwargs)
+       is_transpose = False
+       self.conv_1 = Conv_BatchNorm_ReLU(ngf * 1, is_transpose)
+       self.conv_2 = Conv_BatchNorm_ReLU(ngf * 2, is_transpose)
+       self.conv_3 = Conv_BatchNorm_ReLU(ngf * 4, is_transpose)
+       self.conv_4 = Conv_BatchNorm_ReLU(ngf * 8, is_transpose)
+       self.conv_5 = Conv_BatchNorm_ReLU(ngf * 8, is_transpose)
+       self.conv_6 = Conv_BatchNorm_ReLU(ngf * 8, is_transpose)
+       self.conv_7 = Conv_BatchNorm_ReLU(ngf * 8, is_transpose)
+       self.conv_8 = Conv_BatchNorm_ReLU(ngf * 8, is_transpose)
+
+    @tf.function
+    def call(self, inputs):
+        temp = self.conv_4(self.conv_3(self.conv_2(self.conv_1(inputs))))
+        return self.conv_8(self.conv_7(self.conv_6(self.conv_5(temp))))
+
+class Decoder(tf.keras.layers.Layer):
+    def __init__(self, ngf=64, **kwargs):
+       super(Encoder, self).__init__(**kwargs)
+       is_transpose = True
+       self.conv_1 = Conv_BatchNorm_ReLU(ngf * 8, is_transpose, True)
+       self.conv_2 = Conv_BatchNorm_ReLU(ngf * 8, is_transpose, True)
+       self.conv_3 = Conv_BatchNorm_ReLU(ngf * 8, is_transpose, True)
+       self.conv_4 = Conv_BatchNorm_ReLU(ngf * 8, is_transpose)
+       self.conv_5 = Conv_BatchNorm_ReLU(ngf * 4, is_transpose)
+       self.conv_6 = Conv_BatchNorm_ReLU(ngf * 2, is_transpose)
+       self.conv_7 = Conv_BatchNorm_ReLU(ngf * 1, is_transpose)
+
+    @tf.function
+    def call(self, inputs):
+        temp = self.conv_4(self.conv_3(self.conv_2(self.conv_1(inputs))))
+        return self.conv_7(self.conv_6(self.conv_5(temp)))
+
 # Code adapted from:
 # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
 class UnetSkipConnectionBlock(Layer):
     def __init__(self, inner_nc, outer_nc, submodule=None, outermost=False):
-        Super(super(MyLayer, self).__init__()
+        super(MyLayer, self).__init__()
         innermost = submodule is None
         assert(not (innermost and outermost))
         self.outermost = outermost
@@ -72,7 +126,6 @@ class UnetSkipConnectionBlock(Layer):
             if not innermost:
                 self.downnorm = BatchNormalization()
         
-
     @tf.function
     def call(self, inputs):
         down = self.downnorm(self.downconv(self.downrelu(inputs)))
