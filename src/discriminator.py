@@ -1,10 +1,20 @@
-import numpy as np
+import Generator.py
 import tensorflow as tf
+from tensorflow.keras import Model
+import numpy as np
+"""
+Class for discriminator.
+"""
+
+def log(x):
+    """
+    Finds the stable log of x
+
+    :param x:
+    """
+    return tf.math.log(tf.maximum(x, 1e-5))
 
 class Discriminator(tf.keras.Model):
-    """
-    Class for the pix2pix discriminator.
-    """
     def __init__(self):
         """
         Definition of Discriminator model.
@@ -13,7 +23,16 @@ class Discriminator(tf.keras.Model):
         """
         super(Discriminator, self).__init__()
         #TODO Add series of layers using tf.keras.layers
-        pass
+        self.conv1 = tf.keras.layers.Conv2D(64, kernel_size=(5, 5), strides=(2, 2), padding="same")
+        self.conv2 = tf.keras.layers.Conv2D(128, kernel_size=(5, 5), strides=(2, 2), padding="same")
+        self.batch_norm1 = tf.keras.layers.BatchNormalization()
+        self.conv3 = tf.keras.layers.Conv2D(256, kernel_size=(5, 5), strides=(2, 2), padding="same")
+        self.batch_norm2 = tf.keras.layers.BatchNormalization()
+        self.conv4 = tf.keras.layers.Conv2D(512, kernel_size=(5, 5), strides=(2, 2), padding="same")
+        self.batch_norm3 = tf.keras.layers.BatchNormalization()
+        self.flatten = tf.keras.layers.Flatten()
+        self.compress = tf.keras.layers.Dense(1)
+        self.optimizer = tf.keras.optimizers.Adam(0.0002, beta_1=0.5)
 
 
     @tf.function
@@ -27,11 +46,19 @@ class Discriminator(tf.keras.Model):
         Size = [batch_size,1]
         """
         #TODO Contatenate inputs by final dimesnsion, channels = outline_channels + image_channels
-
+        concatenated_inputs = tf.concat([outlines,images], axis = 3)
         #TODO Apply series of convolutional + dense layers. Use leaky relu
-
-        #TODO Apply sigmoid to results
-        pass
+        conved_1 = tf.nn.leaky_relu(self.conv1(concatenated_inputs))
+        conved_2 = self.conv2(conved_1)
+        conved_2 = tf.nn.leaky_relu(self.batch_norm1(conved_2))
+        conved_3 = self.conv3(conved_2)
+        conved_3 = tf.nn.leaky_relu(self.batch_norm2(conved_3))
+        conved_4 = self.conv4(conved_3)
+        conved_4 = tf.nn.leaky_relu(self.batch_norm3(conved_4))
+        flattened = self.flatten(conved_4)
+        to_sigmoid = self.compress(flattened)
+        outputs = tf.math.sigmoid(to_sigmoid)
+        return outputs
 
 
     @tf.function
@@ -43,4 +70,6 @@ class Discriminator(tf.keras.Model):
         :return:
         """
         #TODO Add loss function, as defined in paper.
-        pass
+        real_loss = -tf.math.reduce_mean(log(disc_real_output))
+        fake_loss = - tf.math.reduce_mean(log(tf.ones(tf.shape(disc_fake_output)) - disc_fake_output))
+        return real_loss + fake_loss
