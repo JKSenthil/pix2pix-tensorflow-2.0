@@ -14,14 +14,14 @@ def log(x):
     """
     return tf.math.log(tf.maximum(x, 1e-5))
 
-class Discriminator(tf.keras.Model):
+class discriminator(tf.keras.Model):
     def __init__(self):
         """
         Definition of Discriminator model.
         Has a number of layers, including several convolutional layers, batch normalization,
         final dense layer, etc.
         """
-        super(Discriminator, self).__init__()
+        super(discriminator, self).__init__()
         #TODO Add series of layers using tf.keras.layers
         self.conv1 = tf.keras.layers.Conv2D(64, kernel_size=(5, 5), strides=(2, 2), padding="same")
         self.conv2 = tf.keras.layers.Conv2D(128, kernel_size=(5, 5), strides=(2, 2), padding="same")
@@ -70,6 +70,6 @@ class Discriminator(tf.keras.Model):
         :return:
         """
         #TODO Add loss function, as defined in paper.
-        real_loss = -tf.math.reduce_mean(log(disc_real_output))
-        fake_loss = - tf.math.reduce_mean(log(tf.ones(tf.shape(disc_fake_output)) - disc_fake_output))
+        real_loss = -tf.math.reduce_mean(log(real_outputs))
+        fake_loss = - tf.math.reduce_mean(log(tf.ones(tf.shape(fake_outputs)) - fake_outputs))
         return real_loss + fake_loss
