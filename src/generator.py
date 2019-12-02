@@ -3,7 +3,6 @@ import tensorflow as tf
 from tensorflow.keras.layers import Layer, Conv2D, BatchNormalization, ReLU, Lambda, LeakyReLU, \
     Conv2DTranspose, Dropout
 
-
 # Code adapted from the Convolutional Autoendoer lab:
 # https://drive.google.com/drive/u/0/folders/1mWRiFZE2ClSbE4Fxp9FgWH-7bwP3lvxQ
 class Conv_BatchNorm_RelU(Layer):
@@ -90,11 +89,29 @@ class AutoEncoder(tf.keras.Model):
         #TODO Add loss function, as defined in paper.
         pass
 
+class UnetGenerator(tf.keras.Model):
+    def __init__(self, ngf=64):
+        super(UnetGenerator, self).__init__()
+        self.unet = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_shape=(256, 256, 3))
+        for _ in range(4):
+            self.unet = UnetSkipConnectionBlock(ngf * 8, ngf * 16, submodule=self.unet)
+        self.unet = UnetSkipConnectionBlock(ngf * 4, ngf * 8, submodule=self.unet)
+        self.unet = UnetSkipConnectionBlock(ngf * 2, ngf * 4, submodule=self.unet)
+        self.unet = UnetSkipConnectionBlock(ngf * 1, ngf * 2, submodule=self.unet, outermost=True)
+
+    @tf.function
+    def call(self, images):
+        return self.unet(images)
+
+    @tf.function
+    def loss_function(self,real_outputs,generated_outputs):
+        pass
+
 # Code adapted from:
 # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
 class UnetSkipConnectionBlock(Layer):
-    def __init__(self, inner_nc, outer_nc, submodule=None, outermost=False):
-        super(MyLayer, self).__init__()
+    def __init__(self, inner_nc, outer_nc, submodule=None, outermost=False, **kwargs):
+        super(MyLayer, self).__init__(**kwargs)
         innermost = submodule is None
         assert(not (innermost and outermost))
         self.outermost = outermost
