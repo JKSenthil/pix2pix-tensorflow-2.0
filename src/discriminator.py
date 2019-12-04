@@ -14,14 +14,14 @@ def log(x):
     """
     return tf.math.log(tf.maximum(x, 1e-5))
 
-class discriminator(tf.keras.Model):
+class Discriminator(tf.keras.Model):
     def __init__(self):
         """
         Definition of Discriminator model.
         Has a number of layers, including several convolutional layers, batch normalization,
         final dense layer, etc.
         """
-        super(discriminator, self).__init__()
+        super(Discriminator, self).__init__()
         #TODO Add series of layers using tf.keras.layers
         self.conv1 = tf.keras.layers.Conv2D(64, kernel_size=(5, 5), strides=(2, 2), padding="same")
         self.conv2 = tf.keras.layers.Conv2D(128, kernel_size=(5, 5), strides=(2, 2), padding="same")
@@ -60,16 +60,19 @@ class discriminator(tf.keras.Model):
         outputs = tf.math.sigmoid(to_sigmoid)
         return outputs
 
-
     @tf.function
-    def loss_function(self,real_outputs,fake_outputs):
+    def loss_function(self, disc_real_outputs, disc_fake_outputs):
         """
         Calculates loss function, when real_outputs are probabilities corresponding to real images,
         :param real_outputs: Output of call when applied to real images.
         :param fake_outputs: Output of call when applied to outputs from generator.
         :return:
         """
-        #TODO Add loss function, as defined in paper.
-        real_loss = -tf.math.reduce_mean(log(real_outputs))
-        fake_loss = - tf.math.reduce_mean(log(tf.ones(tf.shape(fake_outputs)) - fake_outputs))
+        # Add loss function, as defined in paper.
+        real_loss = tf.math.reduce_mean(tf.keras.losses.binary_crossentropy(
+            y_true=tf.ones_like(disc_real_outputs),
+            y_pred=disc_real_outputs))
+        fake_loss = tf.math.reduce_mean(tf.keras.losses.binary_crossentropy(
+            y_true=tf.zeros_like(disc_fake_outputs),
+            y_pred=disc_fake_outputs))
         return real_loss + fake_loss
