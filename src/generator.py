@@ -113,6 +113,7 @@ class UnetGenerator(tf.keras.Model):
         self.deconv_2 = Conv_BatchNorm_ReLU(ngf * 1, used_in_encoder=False)
         self.deconv_1 = Conv2DTranspose(
             filters=output_nc, kernel_size=(4, 4), strides=(2, 2), padding="same")
+        self.optimizer = tf.keras.optimizers.Adam(0.0002, beta_1=0.5)
 
     @tf.function
     def call(self, inputs):
