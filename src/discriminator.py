@@ -9,7 +9,6 @@ Class for discriminator.
 def log(x):
     """
     Finds the stable log of x
-
     :param x:
     """
     return tf.math.log(tf.maximum(x, 1e-5))
@@ -23,13 +22,15 @@ class discriminator(tf.keras.Model):
         """
         super(discriminator, self).__init__()
         #TODO Add series of layers using tf.keras.layers
-        self.conv1 = tf.keras.layers.Conv2D(64, kernel_size=(5, 5), strides=(2, 2), padding="same")
-        self.conv2 = tf.keras.layers.Conv2D(128, kernel_size=(5, 5), strides=(2, 2), padding="same")
+        self.conv1 = tf.keras.layers.Conv2D(64, kernel_size=(4, 4), strides=(2, 2), padding="same")
+        self.conv2 = tf.keras.layers.Conv2D(128, kernel_size=(4, 4), strides=(2, 2), padding="same")
         self.batch_norm1 = tf.keras.layers.BatchNormalization()
-        self.conv3 = tf.keras.layers.Conv2D(256, kernel_size=(5, 5), strides=(2, 2), padding="same")
+        self.conv3 = tf.keras.layers.Conv2D(256, kernel_size=(4, 4), strides=(2, 2), padding="same")
         self.batch_norm2 = tf.keras.layers.BatchNormalization()
-        self.conv4 = tf.keras.layers.Conv2D(512, kernel_size=(5, 5), strides=(2, 2), padding="same")
+        self.conv4 = tf.keras.layers.Conv2D(512, kernel_size=(4, 4), strides=(2, 2), padding="same")
         self.batch_norm3 = tf.keras.layers.BatchNormalization()
+        self.conv5 = tf.keras.layers.Conv2D(512, kernel_size=(4, 4), padding="same")
+        self.batch_norm4 = tf.keras.layers.BatchNormalization()
         self.flatten = tf.keras.layers.Flatten()
         self.compress = tf.keras.layers.Dense(1)
         self.optimizer = tf.keras.optimizers.Adam(0.0002, beta_1=0.5)
@@ -55,7 +56,9 @@ class discriminator(tf.keras.Model):
         conved_3 = tf.nn.leaky_relu(self.batch_norm2(conved_3))
         conved_4 = self.conv4(conved_3)
         conved_4 = tf.nn.leaky_relu(self.batch_norm3(conved_4))
-        flattened = self.flatten(conved_4)
+        conved_5 = self.conv4(conved_4)
+        conved_5 = tf.nn.leaky_relu(self.batch_norm4(conved_5))
+        flattened = self.flatten(conved_5)
         to_sigmoid = self.compress(flattened)
         outputs = tf.math.sigmoid(to_sigmoid)
         return outputs
