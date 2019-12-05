@@ -1,13 +1,13 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Layer, Conv2D, BatchNormalization, ReLU, Lambda, LeakyReLU, \
-    Conv2DTranspose, Dropout
+    Conv2DTranspose, Dropout, Activation
 
 # Code adapted from the Convolutional Autoendoer lab:
 # https://drive.google.com/drive/u/0/folders/1mWRiFZE2ClSbE4Fxp9FgWH-7bwP3lvxQ
-class Conv_BatchNorm_RelU(Layer):
+class Conv_BatchNorm_ReLU(Layer):
     def __init__(self, filters, used_in_encoder, use_dropout=False, **kwargs):
-        super(MyLayer, self).__init__(**kwargs)
+        super(Conv_BatchNorm_ReLU, self).__init__(**kwargs)
         if used_in_encoder: 
             self.conv = Conv2DTranspose(
                 filters=filters, kernel_size=(4, 4), strides=(2, 2), padding="same")
