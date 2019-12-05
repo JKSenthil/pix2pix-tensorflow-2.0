@@ -14,14 +14,14 @@ def log(x):
     """
     return tf.math.log(tf.maximum(x, 1e-5))
 
-class Discriminator(tf.keras.Model):
+class discriminator(tf.keras.Model):
     def __init__(self):
         """
         Definition of Discriminator model.
         Has a number of layers, including several convolutional layers, batch normalization,
         final dense layer, etc.
         """
-        super(Discriminator, self).__init__()
+        super(discriminator, self).__init__()
         #TODO Add series of layers using tf.keras.layers
         self.conv1 = tf.keras.layers.Conv2D(64, kernel_size=(5, 5), strides=(2, 2), padding="same")
         self.conv2 = tf.keras.layers.Conv2D(128, kernel_size=(5, 5), strides=(2, 2), padding="same")
