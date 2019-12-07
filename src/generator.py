@@ -9,10 +9,10 @@ class Conv_BatchNorm_ReLU(Layer):
     def __init__(self, filters, used_in_encoder, use_dropout=False, **kwargs):
         super(Conv_BatchNorm_ReLU, self).__init__(**kwargs)
         if used_in_encoder: 
-            self.conv = Conv2DTranspose(
+            self.conv = Conv2D(
                 filters=filters, kernel_size=(4, 4), strides=(2, 2), padding="same")
         else:
-            self.conv = Conv2D(
+            self.conv = Conv2DTranspose(
                 filters=filters, kernel_size=(4, 4), strides=(2, 2), padding="same")
         self.batchnorm = BatchNormalization()
         self.dropout = Dropout(0.5) if use_dropout else Lambda(lambda x: x)
@@ -90,11 +90,11 @@ class UnetGenerator(tf.keras.Model):
     """
     Class for the pix2pix generator.
     """
-    def __init__(self, input_nc, output_nc, ngf=64, _lambda=100):
+    def __init__(self, input_nc, output_nc, ngf=64, _lambda=100.0):
         super(UnetGenerator, self).__init__()
         self._lambda = _lambda
         self.conv_1 = Conv2D(
-           filters=ngf, kernel_size=(4, 4), strides=(2, 2), padding="same")
+           filters=ngf, kernel_size=(4, 4), strides=(2, 2), padding="same", input_shape=(256, 256, input_nc))
         self.conv_2 = Conv_BatchNorm_ReLU(ngf * 2, used_in_encoder=True)
         self.conv_3 = Conv_BatchNorm_ReLU(ngf * 4, used_in_encoder=True)
         self.conv_4 = Conv_BatchNorm_ReLU(ngf * 8, used_in_encoder=True)
@@ -113,10 +113,9 @@ class UnetGenerator(tf.keras.Model):
         self.deconv_2 = Conv_BatchNorm_ReLU(ngf * 1, used_in_encoder=False)
         self.deconv_1 = Conv2DTranspose(
             filters=output_nc, kernel_size=(4, 4), strides=(2, 2), padding="same")
-        self.optimizer = tf.keras.optimizers.Adam(0.0002, beta_1=0.5)
 
     @tf.function
-    def call(self, inputs):
+    def call(self, images):
         encoder_output_1 = tf.nn.leaky_relu(self.conv_1(images), 0.2)
         encoder_output_2 = self.conv_2(encoder_output_1)
         encoder_output_3 = self.conv_3(encoder_output_2)
@@ -132,12 +131,15 @@ class UnetGenerator(tf.keras.Model):
             [encoder_output_7, encoder_output_6, encoder_output_5, encoder_output_4, encoder_output_3, encoder_output_2, encoder_output_1]
         ):
             _decoder_output = deconv(decoder_output)
+            print(_decoder_output.shape, encoder_output.shape)
             decoder_output = tf.concat((_decoder_output, encoder_output), -1)
         return tf.math.tanh(self.deconv_1(decoder_output))
 
     @tf.function
-    def loss_function(self, discriminator, inputs, ground_truth_outputs):
+    def loss_function(self, disc_fake_outputs, generated_output, ground_truth):
+        """
         generated_outputs = self.call(inputs)
         disc_fake_outputs = discriminator(inputs, generated_outputs)
         return tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.zeros_like(logits_fake), y_pred=disc_fake_outputs)) + \
-            tf.math.scalar_mul(tf.constant(self._lambda), tf.norm(generated_outputs - ground_truth_outputs, 1))
+        """
+        return tf.math.scalar_mul(tf.constant(1.0), tf.norm(generated_output - ground_truth, 1))
