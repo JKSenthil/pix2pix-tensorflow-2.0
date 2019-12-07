@@ -26,9 +26,6 @@ parser = argparse.ArgumentParser(description='PIX2PIX')
 parser.add_argument('--img-dir', type=str, default='./data/celebA',
                     help='Data where training images live')
 
-parser.add_argument('--outline-dir', type=str, default='./data/celebA',
-                    help='Data where training images live')
-
 parser.add_argument('--out-dir', type=str, default='./output',
                     help='Data where sampled output images will be written')
 
@@ -37,9 +34,6 @@ parser.add_argument('--mode', type=str, default='train',
 
 parser.add_argument('--restore-checkpoint', action='store_true',
                     help='Use this flag if you want to resuming training from a previously-saved checkpoint')
-
-parser.add_argument('--z-dim', type=int, default=100,
-                    help='Dimensionality of the latent space')
 
 parser.add_argument('--batch-size', type=int, default=128,
                     help='Sizes of image batches fed through the network')
@@ -71,7 +65,7 @@ parser.add_argument('--device', type=str, default='GPU:0' if gpu_available else 
 args = parser.parse_args()
 
 module = tf.keras.Sequential([hub.KerasLayer("https://tfhub.dev/google/tf2-preview/inception_v3/classification/4", output_shape=[1001])])
-def fid_function(real_image_batch, generated_image_batch):
+def fid_function(real_image_batch,generated_image_batch):
     """
     Given a batch of real images and a batch of generated images, this function pulls down a pre-trained inception
     v3 network and then uses it to extract the activations for both the real and generated images. The distance of
@@ -90,32 +84,31 @@ def fid_function(real_image_batch, generated_image_batch):
     fake_features = module(fake_resized)
     return tfgan.eval.frechet_classifier_distance_from_activations(real_features, fake_features)
 # Train the model for one epoch.
-def train(generator, discriminator, image_iterator, outline_iterator, manager):
+def train(generator, discriminator, image_iterator, manager):
     """
     Train the model for one epoch. Save a checkpoint every 500 or so batches.
 
     :param generator: generator model
     :param discriminator: discriminator model
-    :param image_iterator: iterator over real images
-    :param outline_iterator: iterator over outlined images
+    :param image_iterator: iterator over images
     :param manager: the manager that handles saving checkpoints by calling save()
     """
     fid_av = 0
     num_batches = 0
     # Loop over our data until we run out
-    for iteration, (img_batch, outline_batch) in zip(image_iterator,outline_iterator):
+    for iteration, img_batch in enumerate(image_iterator):
+        ground_truth_batch = tf.slice(img_batch, [0,0,0,0],[-1,-1,256,-1])
+        outline_batch = tf.slice(img_batch, [0,0,256,0],[-1,-1,-1,-1])
         with tf.GradientTape() as tape_d:
             gen_output = generator(outline_batch)
-            real_probs = discriminator(outline_batch,img_batch)
+            real_probs = discriminator(outline_batch,ground_truth_batch)
             fake_probs = discriminator(outline_batch,gen_output)
             disc_loss = discriminator.loss_function(real_probs,fake_probs)
         d_grad = tape_d.gradient(disc_loss,discriminator.trainable_variables)
         discriminator.optimizer.apply_gradients(zip(d_grad, discriminator.trainable_variables))
         for i in range(args.num_gen_updates):
             with tf.GradientTape() as tape_g:
-                gen_output = generator(outline_batch)
-                fake_probs = discriminator(gen_output)
-                gen_loss= generator.loss_function(fake_probs)
+                gen_loss= generator.loss_function(discriminator,outline_batch,ground_truth_batch)
             g_grad = tape_g.gradient(gen_loss,generator.trainable_variables)
             generator.optimizer.apply_gradients(zip(g_grad, generator.trainable_variables))
 
@@ -125,8 +118,8 @@ def train(generator, discriminator, image_iterator, outline_iterator, manager):
 
         if iteration % 100 == 0:
             if iteration % 500 == 0:
-                test(generator)
-            fid_ = fid_function(img_batch, gen_output)
+                test(generator,outline_batch)
+            fid_ = fid_function(ground_truth_batch, gen_output)
             print('**** INCEPTION DISTANCE: %g ****' % fid_, disc_loss, gen_loss)
             fid_av = fid_av + fid_
             num_batches = num_batches + 1
@@ -135,7 +128,7 @@ def train(generator, discriminator, image_iterator, outline_iterator, manager):
 
 
 # Test the model by generating some samples.
-def test(generator,outline_batch):
+def test(generator,img_batch):
     """
     Test the model.
 
@@ -144,6 +137,7 @@ def test(generator,outline_batch):
 
     :return: None
     """
+    outline_batch = tf.slice(img_batch, [0, 0, 256, 0], [-1, -1, -1, -1])
     img = np.array(generator(outline_batch))
 
     ### Below, we've already provided code to save these generated images to files on disk
@@ -162,11 +156,11 @@ def test(generator,outline_batch):
 
 def main():
     # Load a batch of images (to feed to the discriminator)
-    real_iterator,outline_iterator = load_image_batch(args.img_dir,args.outline_dir, batch_size=args.batch_size, n_threads=args.num_data_threads)
+    im_iterator = load_image_batch(args.img_dir, batch_size=args.batch_size, n_threads=args.num_data_threads)
 
     # Initialize generator and discriminator models
-    generator = UnetGenerator()
-    discriminator = discriminator()
+    generator = generator.UnetGenerator(3,3)
+    discriminator = patchgan.patchgan()
 
     # For saving/loading models
     checkpoint_dir = './checkpoints'
@@ -187,13 +181,16 @@ def main():
             if args.mode == 'train':
                 for epoch in range(0, args.num_epochs):
                     print('========================== EPOCH %d  ==========================' % epoch)
-                    avg_fid = train(generator, discriminator, real_iterator,outline_iterator, manager)
+                    avg_fid = train(generator, discriminator, im_iterator, manager)
                     print("Average FID for Epoch: " + str(avg_fid))
                     # Save at the end of the epoch, too
                     print("**** SAVING CHECKPOINT AT END OF EPOCH ****")
                     manager.save()
             if args.mode == 'test':
-                test(generator)
+                for i in enumerate(im_iterator):
+                    img_batch = i
+                    break
+                test(generator,img_batch)
     except RuntimeError as e:
         print(e)
 
