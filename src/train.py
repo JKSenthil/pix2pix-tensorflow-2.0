@@ -25,8 +25,11 @@ print("GPU Available: ", gpu_available)
 
 parser = argparse.ArgumentParser(description='DCGAN')
 
-parser.add_argument('--img-dir', type=str, default='./data/facades/train',
+parser.add_argument('--train-dir', type=str, default='./data/facades/train',
                             help='Data where training images live')
+
+parser.add_argument('--test-dir', type=str, default='./data/facades/test',
+                            help='Data where testing images live')
 
 parser.add_argument('--out-dir', type=str, default='./output',
                             help='Data where sampled output images will be written')
@@ -177,7 +180,7 @@ def train(generator, discriminator, dataset_iterator, manager):
     y_true, y_pred = [], []
     # Loop over our data until we run out
     for iteration, image_pairs in enumerate(dataset_iterator):
-        input_, ground_truth = tf.split(image_pairs, 2, 2)
+        ground_truth, input_ = tf.split(image_pairs, 2, 2)
         with tf.GradientTape(persistent=True) as tape:
             generated_output = generator(input_)
             lossG = generator.loss_function(None, generated_output, ground_truth)
@@ -187,7 +190,7 @@ def train(generator, discriminator, dataset_iterator, manager):
         y_true.append(ground_truth)
         y_pred.append(generated_output)
         # Save
-        if iteration % args.save_every == 0:
+        if iteration > 0 and iteration % args.save_every == 0:
             manager.save()
             # Calculate inception distance and track the fid in order
             # to return the average
@@ -199,7 +202,7 @@ def train(generator, discriminator, dataset_iterator, manager):
     return sum(fids) / float(len(fids))
 
 # Test the model by generating some samples.
-def test(generator):
+def test(generator, dataset_iterator):
     """
     Test the model.
 
@@ -207,25 +210,27 @@ def test(generator):
 
     :return: None
     """
-    # Sample a batch of random images
-    z = tf.random.normal((args.batch_size, args.z_dim))
-    img = generator(z).numpy()
-    ### Below, we've already provided code to save these generated images to files on disk
-    # Rescale the image from (-1, 1) to (0, 255)
-    img = ((img / 2) + 0.5) * 255
-    # Convert to uint8
-    img = img.astype(np.uint8)
-    # Save images to disk
-    for i in range(0, args.batch_size):
-        img_i = img[i]
+    for i, image_pairs in enumerate(dataset_iterator):
+        # Sample a batch of random images
+        _, input_ = tf.split(image_pairs, 2, 2)
+        ### Below, we've already provided code to save these generated images to files on disk
+        img = tf.concat([input_, generator(input_)], 2).numpy()
+        assert(np.all(-1.0 <= img) and np.all(img <= 1.0))
+        # Rescale the image from (-1, 1) to (0, 255)
+        img = ((img / 2) + 0.5) * 255
+        img = img.astype(np.uint8)
+        # Save images to disk
         s = args.out_dir+'/'+str(i)+'.png'
-        imwrite(s, img_i)
+        imwrite(s, img[0])
 
 ## --------------------------------------------------------------------------------------
 
 def main():
     # Load a batch of images (to feed to the discriminator)
-    dataset_iterator = load_image_batch(args.img_dir, batch_size=args.batch_size, n_threads=args.num_data_threads)
+    if args.mode == 'train':
+        dataset_iterator = load_image_batch(args.train_dir, batch_size=args.batch_size, n_threads=args.num_data_threads)
+    else:    
+        dataset_iterator = load_image_batch(args.test_dir, batch_size=args.batch_size, n_threads=args.num_data_threads)
 
     # Initialize generator and discriminator models
     # generator = UnetGenerator(3, 3)
@@ -257,7 +262,7 @@ def main():
                     print("**** SAVING CHECKPOINT AT END OF EPOCH ****")
                     manager.save()
             if args.mode == 'test':
-                test(generator)
+                test(generator, dataset_iterator)
     except RuntimeError as e:
         print(e)
 
