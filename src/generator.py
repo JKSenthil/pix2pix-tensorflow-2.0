@@ -44,8 +44,8 @@ class Encoder(Layer):
 
 class Decoder(Layer):
     def __init__(self, output_nc, ngf=64, **kwargs):
-       super(Encoder, self).__init__(**kwargs)
-       used_in_encoder = True
+       super(Decoder, self).__init__(**kwargs)
+       used_in_encoder = False 
        self.conv_1 = Conv_BatchNorm_ReLU(ngf * 8, used_in_encoder, use_dropout=True)
        self.conv_2 = Conv_BatchNorm_ReLU(ngf * 8, used_in_encoder, use_dropout=True)
        self.conv_3 = Conv_BatchNorm_ReLU(ngf * 8, used_in_encoder, use_dropout=True)
@@ -75,14 +75,20 @@ class AutoEncoder(tf.keras.Model):
 
     @tf.function
     def call(self, images):
-        return self.decoder(self.encoder(images))
+        temp = self.encoder(images)
+        print(temp.shape)
+        result = self.decoder(temp)
+        print(result.shape)
+        return result
 
     @tf.function
-    def loss_function(self, discriminator, inputs, ground_truth_outputs):
+    def loss_function(self, disc_fake_outputs, generated_output, ground_truth):
+        """
         generated_outputs = self.call(inputs)
         disc_fake_outputs = discriminator(inputs, generated_outputs)
         return tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.zeros_like(logits_fake), y_pred=disc_fake_outputs)) + \
-            tf.math.scalar_mul(tf.constant(self._lambda), tf.norm(generated_outputs - ground_truth_outputs, 1))
+        """
+        return tf.math.scalar_mul(tf.constant(1.0), tf.norm(generated_output - ground_truth, 1))
 
 # Code adapted from: 
 # https://github.com/phillipi/pix2pix/blob/master/models.lua
