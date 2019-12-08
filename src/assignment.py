@@ -59,7 +59,7 @@ parser.add_argument('--learn-rate', type=float, default=0.0002,
 parser.add_argument('--beta1', type=float, default=0.5,
                     help='"beta1" parameter for Adam optimizer')
 
-parser.add_argument('--num-gen-updates', type=int, default=2,
+parser.add_argument('--num-gen-updates', type=int, default=1,
                     help='Number of generator updates per discriminator update')
 
 parser.add_argument('--input-nc', type=int, default=3,
