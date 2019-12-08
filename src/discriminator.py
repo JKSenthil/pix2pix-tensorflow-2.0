@@ -1,6 +1,44 @@
 import tensorflow as tf
-from tensorflow.keras import Model
+from tensorflow.keras.layers import Conv2D, BatchNormalization
 import numpy as np
+
+k_init = tf.keras.initializers.TruncatedNormal(stddev=0.02)
+g_init = tf.keras.initializers.TruncatedNormal(mean=1.0, stddev=0.02)
+
+# Code adapted from the official Torch implementat of pix2pix:
+# https://github.com/phillipi/pix2pix/blob/master/models.lua
+class PixelGAN(tf.keras.Model):
+    def __init__(self, input_nc, output_nc, ndf=64):
+        super(PixelGAN, self).__init__()
+        self.conv_1 = Conv2D(
+            filters=ndf, kernel_size=(1, 1), strides=(1, 1), padding="valid",
+            kernel_initializer=k_init, input_shape=(256, 256, input_nc + output_nc))
+        
+        self.conv_2 = Conv2D(
+            filters=ndf * 2, kernel_size=(1, 1), strides=(1, 1), padding="valid",
+            kernel_initializer=k_init)
+        self.batchnorm = BatchNormalization(gamma_initializer=g_init)
+
+        self.conv_3 = Conv2D(
+            filters=1, kernel_size=(1, 1), strides=(1, 1), padding="valid",
+            kernel_initializer=k_init)
+
+    @tf.function
+    def call(self, input_, output):
+        image_pairs = tf.concat([input_, output], -1)
+        result = tf.nn.leaky_relu(self.conv_1(image_pairs), 0.2)
+        result = tf.nn.leaky_relu(self.batchnorm(self.conv_2(result)), 0.2)
+        return tf.math.reduce_mean(tf.math.sigmoid(self.conv_3(result)), axis=(1, 2, 3))
+
+    @tf.function 
+    def loss_function(self, disc_real_output, disc_fake_output):
+        real_loss = tf.math.reduce_mean(tf.keras.losses.binary_crossentropy(
+            y_true=tf.ones_like(disc_real_output),
+            y_pred=disc_real_output))
+        fake_loss = tf.math.reduce_mean(tf.keras.losses.binary_crossentropy(
+            y_true=tf.zeros_like(disc_fake_output),
+            y_pred=disc_fake_output))
+        return real_loss + fake_loss
 
 class Discriminator(tf.keras.Model):
     def __init__(self):
@@ -52,21 +90,14 @@ class Discriminator(tf.keras.Model):
         outputs = tf.math.sigmoid(to_sigmoid)
         return outputs
 
-    @tf.function
-    def loss_function(self, disc_real_outputs, disc_fake_outputs):
-        """
-        Calculates loss function, when real_outputs are probabilities corresponding to real images,
-        :param real_outputs: Output of call when applied to real images.
-        :param fake_outputs: Output of call when applied to outputs from generator.
-        :return:
-        """
-        # Add loss function, as defined in paper.
+    @tf.function 
+    def loss_function(self, disc_real_output, disc_fake_output):
         real_loss = tf.math.reduce_mean(tf.keras.losses.binary_crossentropy(
-            y_true=tf.ones_like(disc_real_outputs),
-            y_pred=disc_real_outputs))
+            y_true=tf.ones_like(disc_real_output),
+            y_pred=disc_real_output))
         fake_loss = tf.math.reduce_mean(tf.keras.losses.binary_crossentropy(
-            y_true=tf.zeros_like(disc_fake_outputs),
-            y_pred=disc_fake_outputs))
+            y_true=tf.zeros_like(disc_fake_output),
+            y_pred=disc_fake_output))
         return real_loss + fake_loss
 
 class PatchGAN(tf.keras.Model):
@@ -114,19 +145,12 @@ class PatchGAN(tf.keras.Model):
         outputs = tf.math.reduce_mean(patch_probs, axis = 0)
         return outputs
 
-    @tf.function
-    def loss_function(self, disc_real_outputs, disc_fake_outputs):
-        """
-        Calculates loss function, when real_outputs are probabilities corresponding to real images,
-        :param real_outputs: Output of call when applied to real images.
-        :param fake_outputs: Output of call when applied to outputs from generator.
-        :return:
-        """
-        # Add loss function, as defined in paper.
+    @tf.function 
+    def loss_function(self, disc_real_output, disc_fake_output):
         real_loss = tf.math.reduce_mean(tf.keras.losses.binary_crossentropy(
-            y_true=tf.ones_like(disc_real_outputs),
-            y_pred=disc_real_outputs))
+            y_true=tf.ones_like(disc_real_output),
+            y_pred=disc_real_output))
         fake_loss = tf.math.reduce_mean(tf.keras.losses.binary_crossentropy(
-            y_true=tf.zeros_like(disc_fake_outputs),
-            y_pred=disc_fake_outputs))
+            y_true=tf.zeros_like(disc_fake_output),
+            y_pred=disc_fake_output))
         return real_loss + fake_loss

@@ -12,8 +12,9 @@ import argparse
 import time
 
 from imageio import imwrite
-from generator import UnetGenerator, AutoEncoder
 from preprocess import load_image_batch, random_jitter_and_mirroring
+from generator import UnetGenerator, AutoEncoder
+from discriminator import PixelGAN
 
 # Killing optional CPU driver warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -61,8 +62,11 @@ parser.add_argument('--beta1', type=float, default=0.5,
 parser.add_argument('--num-gen-updates', type=int, default=2,
                     help='Number of generator updates per discriminator update')
 
-parser.add_argument('--log-every', type=int, default=128,
-                    help='Print losses after every [this many] training iterations')
+parser.add_argument('--input-nc', type=int, default=3,
+                    help='Number of channels in the input images')
+
+parser.add_argument('--output-nc', type=int, default=3,
+                    help='Number of channels in the output images')
 
 parser.add_argument('--save-every', type=int, default=100,
                     help='Save the state of the network after every [this many] training iterations')
@@ -98,41 +102,6 @@ def fid_function(real_image_batch, generated_image_batch):
     fake_features = module(fake_resized)
     return tfgan.eval.frechet_classifier_distance_from_activations(real_features, fake_features)
 
-k_init=tf.keras.initializers.TruncatedNormal(stddev=0.02)
-g_init=tf.keras.initializers.TruncatedNormal(mean=1.0, stddev=0.02)
-def make_discriminator_model():
-    model = tf.keras.Sequential()
-    model.add(Conv2D(
-        filters=64, kernel_size=(5, 5), strides=(2, 2), padding="same",
-        input_shape=(64, 64, 3), kernel_initializer=k_init))
-    model.add(LeakyReLU(alpha=0.2))
-
-    model.add(Conv2D(
-        filters=128, kernel_size=(5, 5), strides=(2, 2), padding="same", 
-        use_bias=False, kernel_initializer=k_init))
-    model.add(BatchNormalization(gamma_initializer=g_init))
-    model.add(LeakyReLU(alpha=0.2))
-
-    model.add(Conv2D(
-        filters=256, kernel_size=(5, 5), strides=(2, 2), padding="same",
-        use_bias=False, kernel_initializer=k_init))
-    model.add(BatchNormalization(gamma_initializer=g_init))
-    model.add(LeakyReLU(alpha=0.2))
-
-    model.add(Conv2D(
-        filters=512, kernel_size=(5, 5), strides=(2, 2), padding="same",
-        use_bias=False, kernel_initializer=k_init))
-    model.add(BatchNormalization(gamma_initializer=g_init))
-    model.add(LeakyReLU(alpha=0.2))
-    # Get some help from https://sthalles.github.io/intro-to-gans/
-    model.add(Flatten())
-    model.add(Dense(1, kernel_initializer=k_init))
-    model.add(Activation("sigmoid"))
-
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=args.learn_rate, beta_1=args.beta1),
-        loss='binary_crossentropy')
-    return model
-    
 ## --------------------------------------------------------------------------------------
 # Get some help from:
 # https://towardsdatascience.com/understanding-binary-cross-entropy-log-loss-a-visual-explanation-a3ac6025181a
@@ -174,7 +143,7 @@ def train(generator, discriminator, dataset_iterator, manager):
         with tf.GradientTape(persistent=True) as tape:
             generated_output = generator(input_)
             disc_real_output = discriminator(input_, ground_truth)
-            disc_fake_output = discriminator(input_, generated_ouput)
+            disc_fake_output = discriminator(input_, generated_output)
 
             lossG = generator.loss_function(disc_fake_output, generated_output, ground_truth)
             lossD = discriminator.loss_function(disc_real_output, disc_fake_output)
@@ -225,14 +194,13 @@ def main():
     dataset_iterator = load_image_batch(args.img_dir + '/' + args.mode, batch_size=args.batch_size, n_threads=args.num_data_threads)
 
     # Initialize generator and discriminator models
-    generator = UnetGenerator(3, 3)
-    # generator = AutoEncoder(3, 3)
-    discriminator = make_discriminator_model()
+    generator = UnetGenerator(args.input_nc, args.output_nc)
+    discriminator = PixelGAN(args.input_nc, args.output_nc)
 
     # For saving/loading models
     checkpoint_prefix = os.path.join(args.checkpoint_dir, "ckpt")
     checkpoint = tf.train.Checkpoint(generator=generator, discriminator=discriminator)
-    manager = tf.train.CheckpointManager(checkpoint, checkpoint_dir, max_to_keep=3)
+    manager = tf.train.CheckpointManager(checkpoint, args.checkpoint_dir, max_to_keep=3)
     # Ensure the output directory exists
     if not os.path.exists(args.out_dir):
         os.makedirs(args.out_dir)
