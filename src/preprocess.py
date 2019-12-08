@@ -63,7 +63,7 @@ def load_image_batch(dir_name, batch_size, shuffle_buffer_size=250000, n_threads
 def random_jitter_and_mirroring(image_pairs):
     batch_size, h, w, _ = image_pairs.shape
     assert(w == 2 * h)
-    ground_truth, input_  = tf.split(images, 2, 2)
+    ground_truth, input_  = tf.split(image_pairs, 2, 2)
     crop_height = 256 
     crop_width  = 256
 
