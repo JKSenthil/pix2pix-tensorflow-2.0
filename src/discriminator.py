@@ -9,11 +9,11 @@ g_init = tf.keras.initializers.TruncatedNormal(mean=1.0, stddev=0.02)
 # Code adapted from the official Torch implementation of pix2pix:
 # https://github.com/phillipi/pix2pix/blob/master/models.lua
 class PixelGAN(tf.keras.Model):
-    def __init__(self, input_nc, output_nc, ndf=64):
+    def __init__(self, input_nc, output_nc, image_width, ndf=64):
         super(PixelGAN, self).__init__()
         self.conv_1 = Conv2D(
             filters=ndf, kernel_size=(1, 1), strides=(1, 1), padding="valid",
-            kernel_initializer=k_init, input_shape=(256, 256, input_nc + output_nc))
+            kernel_initializer=k_init, input_shape=(image_width, image_width, input_nc + output_nc))
         
         self.conv_2 = Conv2D(
             filters=ndf * 2, kernel_size=(1, 1), strides=(1, 1), padding="valid",
@@ -42,7 +42,7 @@ class PixelGAN(tf.keras.Model):
         return real_loss + fake_loss
 
 class PatchGAN(tf.keras.Model):
-    def __init__(self, input_nc, output_nc, ndf=64):
+    def __init__(self, input_nc, output_nc, image_width, ndf=64):
         """
         Definition of patchgan discriminator model.
         Has a number of layers, including several convolutional layers, batch normalization,
@@ -51,7 +51,7 @@ class PatchGAN(tf.keras.Model):
         super(PatchGAN, self).__init__()
         self.conv_0 = Conv2D(
                 filters=ndf, kernel_size=(4, 4), strides=(2, 2), padding="same",
-                kernel_initializer=k_init, input_shape=(256, 256, input_nc + output_nc))
+                kernel_initializer=k_init, input_shape=(image_width, image_width, input_nc + output_nc))
     
         used_in_encoder = True
         self.conv_1 = Conv_BatchNorm_ReLU(ndf * 2, used_in_encoder)

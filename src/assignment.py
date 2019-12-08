@@ -41,8 +41,8 @@ parser.add_argument('--mode', type=str, default='train',
 parser.add_argument('--restore-checkpoint', action='store_true',
                             help='Use this flag if you want to resuming training from a previously-saved checkpoint')
 
-parser.add_argument('--z-dim', type=int, default=100,
-                            help='Dimensionality of the latent space')
+parser.add_argument('--image-width', type=int, default=256,
+                            help='width of the images')
 
 parser.add_argument('--batch-size', type=int, default=1,
                             help='Sizes of image batches fed through the network')
