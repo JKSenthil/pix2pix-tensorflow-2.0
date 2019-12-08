@@ -8,15 +8,15 @@ g_init=tf.keras.initializers.TruncatedNormal(mean=1.0, stddev=0.02)
 # Code adapted from the Convolutional Autoendoer lab:
 # https://drive.google.com/drive/u/0/folders/1mWRiFZE2ClSbE4Fxp9FgWH-7bwP3lvxQ
 class Conv_BatchNorm_ReLU(Layer):
-    def __init__(self, filters, used_in_encoder, use_dropout=False, **kwargs):
+    def __init__(self, filters, used_in_encoder, use_dropout=False, strides=(2, 2), **kwargs):
         super(Conv_BatchNorm_ReLU, self).__init__(**kwargs)
         if used_in_encoder: 
             self.conv = Conv2D(
-                filters=filters, kernel_size=(4, 4), strides=(2, 2), padding="same",
+                filters=filters, kernel_size=(4, 4), strides=strides, padding="same",
                 kernel_initializer=k_init)
         else:
             self.conv = Conv2DTranspose(
-                filters=filters, kernel_size=(4, 4), strides=(2, 2), padding="same",
+                filters=filters, kernel_size=(4, 4), strides=strides, padding="same",
                 kernel_initializer=k_init)
         self.batchnorm = BatchNormalization(gamma_initializer=g_init)
         self.dropout = Dropout(0.5) if use_dropout else Lambda(lambda x: x)

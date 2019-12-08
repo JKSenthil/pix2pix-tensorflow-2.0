@@ -14,7 +14,7 @@ import time
 from imageio import imwrite
 from preprocess import load_image_batch, random_jitter_and_mirroring
 from generator import UnetGenerator, AutoEncoder
-from discriminator import PixelGAN
+from discriminator import PixelGAN, PatchGAN
 
 # Killing optional CPU driver warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -195,7 +195,7 @@ def main():
 
     # Initialize generator and discriminator models
     generator = UnetGenerator(args.input_nc, args.output_nc)
-    discriminator = PixelGAN(args.input_nc, args.output_nc)
+    discriminator = PatchGAN(args.input_nc, args.output_nc)
 
     # For saving/loading models
     checkpoint_prefix = os.path.join(args.checkpoint_dir, "ckpt")
