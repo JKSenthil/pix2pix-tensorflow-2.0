@@ -148,8 +148,9 @@ def train(generator, discriminator, dataset_iterator, manager):
             lossG = generator.loss_function(disc_fake_output, generated_output, ground_truth)
             lossD = discriminator.loss_function(disc_real_output, disc_fake_output)
 
-        optimize(tape, generator, lossG)
         optimize(tape, discriminator, lossD)
+        for _ in range(args.num_gen_updates):
+            optimize(tape, generator, lossG)
 
         real_image_batch.append(ground_truth)
         generated_image_batch.append(generated_output)
@@ -194,8 +195,8 @@ def main():
     dataset_iterator = load_image_batch(args.img_dir + '/' + args.mode, batch_size=args.batch_size, n_threads=args.num_data_threads)
 
     # Initialize generator and discriminator models
-    generator = UnetGenerator(args.input_nc, args.output_nc)
-    discriminator = PatchGAN(args.input_nc, args.output_nc)
+    generator = UnetGenerator(args.input_nc, args.output_nc, args.image_width)
+    discriminator = PatchGAN(args.input_nc, args.output_nc, args.image_width)
 
     # For saving/loading models
     checkpoint_prefix = os.path.join(args.checkpoint_dir, "ckpt")
