@@ -148,5 +148,7 @@ class UnetGenerator(tf.keras.Model):
 
     @tf.function
     def loss_function(self, disc_fake_output, generated_output, ground_truth):
+        batch_size, h, w, nc = generated_output.shape
         return tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.ones_like(disc_fake_output), y_pred=disc_fake_output)) + \
-            tf.math.scalar_mul(tf.constant(100.0), tf.norm(generated_output - ground_truth, ord=1))
+            tf.math.scalar_mul(tf.constant(100.0 / batch_size / h / w / nc), 
+                               tf.norm(generated_output - ground_truth, ord=1))
