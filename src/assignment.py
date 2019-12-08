@@ -179,7 +179,10 @@ def test(generator, dataset_iterator):
     """
     for i, image_pairs in enumerate(dataset_iterator):
         # Sample a batch of random images
-        ground_truth, input_  = tf.split(image_pairs, 2, 2)
+        if image_pairs.shape[1] != 256:
+            ground_truth, input_ = random_jitter_and_mirroring(image_pairs)
+        else:
+            ground_truth, input_  = tf.split(image_pairs, 2, 2)
         ### Below, we've already provided code to save these generated images to files on disk
         img = tf.concat([input_, ground_truth, generator(input_)], 2).numpy()
         assert(np.all(-1.0 <= img) and np.all(img <= 1.0))

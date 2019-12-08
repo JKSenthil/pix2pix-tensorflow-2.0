@@ -60,9 +60,10 @@ def load_image_batch(dir_name, batch_size, shuffle_buffer_size=250000, n_threads
     # Return an iterator over this dataset
     return dataset
 
-def random_jitter_and_mirroring(images):
-    input_, ground_truth = tf.split(images, 2, 2)
-    batch_size = input_.shape[0]
+def random_jitter_and_mirroring(image_pairs):
+    batch_size, h, w, _ = image_pairs.shape
+    assert(w == 2 * h)
+    ground_truth, input_  = tf.split(images, 2, 2)
     crop_height = 256 
     crop_width  = 256
 
@@ -70,11 +71,11 @@ def random_jitter_and_mirroring(images):
         tf.image.flip_left_right(input_) 
         tf.image.flip_left_right(ground_truth) 
 
-    resized_input = tf.image.resize(input_, tf.constant([286, 286]))
     resized_ground_truth = tf.image.resize(ground_truth, tf.constant([286, 286]))
-    cropped_input = tf.image.random_crop(resized_input, [batch_size, crop_height, crop_width, 3])
+    resized_input = tf.image.resize(input_, tf.constant([286, 286]))
     cropped_ground_truth = tf.image.random_crop(resized_ground_truth, [batch_size, crop_height, crop_width, 3])
-    return cropped_input, cropped_ground_truth
+    cropped_input = tf.image.random_crop(resized_input, [batch_size, crop_height, crop_width, 3])
+    return cropped_ground_truth, cropped_input
 
 def main():
     img_dir = "../../UnetGenerator/data/facades"
