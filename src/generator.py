@@ -3,6 +3,8 @@ import tensorflow as tf
 from tensorflow.keras.layers import Layer, Conv2D, BatchNormalization, ReLU, Lambda, LeakyReLU, \
     Conv2DTranspose, Dropout, Activation
 
+k_init=tf.keras.initializers.TruncatedNormal(stddev=0.02)
+g_init=tf.keras.initializers.TruncatedNormal(mean=1.0, stddev=0.02)
 # Code adapted from the Convolutional Autoendoer lab:
 # https://drive.google.com/drive/u/0/folders/1mWRiFZE2ClSbE4Fxp9FgWH-7bwP3lvxQ
 class Conv_BatchNorm_ReLU(Layer):
@@ -10,11 +12,13 @@ class Conv_BatchNorm_ReLU(Layer):
         super(Conv_BatchNorm_ReLU, self).__init__(**kwargs)
         if used_in_encoder: 
             self.conv = Conv2D(
-                filters=filters, kernel_size=(4, 4), strides=(2, 2), padding="same")
+                filters=filters, kernel_size=(4, 4), strides=(2, 2), padding="same",
+                kernel_initializer=k_init)
         else:
             self.conv = Conv2DTranspose(
-                filters=filters, kernel_size=(4, 4), strides=(2, 2), padding="same")
-        self.batchnorm = BatchNormalization()
+                filters=filters, kernel_size=(4, 4), strides=(2, 2), padding="same",
+                kernel_initializer=k_init)
+        self.batchnorm = BatchNormalization(gamma_initializer=g_init)
         self.dropout = Dropout(0.5) if use_dropout else Lambda(lambda x: x)
         self.relu = LeakyReLU(0.2) if used_in_encoder else Activation("relu")
 
@@ -27,7 +31,8 @@ class Encoder(Layer):
        super(Encoder, self).__init__(**kwargs)
        used_in_encoder = True
        self.conv_1 = Conv2D(
-           filters=ngf, kernel_size=(4, 4), strides=(2, 2), padding="same")
+           filters=ngf, kernel_size=(4, 4), strides=(2, 2), padding="same",
+           kernel_initializer=k_init)
        self.conv_2 = Conv_BatchNorm_ReLU(ngf * 2, used_in_encoder)
        self.conv_3 = Conv_BatchNorm_ReLU(ngf * 4, used_in_encoder)
        self.conv_4 = Conv_BatchNorm_ReLU(ngf * 8, used_in_encoder)
@@ -35,7 +40,8 @@ class Encoder(Layer):
        self.conv_6 = Conv_BatchNorm_ReLU(ngf * 8, used_in_encoder)
        self.conv_7 = Conv_BatchNorm_ReLU(ngf * 8, used_in_encoder)
        self.conv_8 = Conv2D(
-           filters=ngf * 8, kernel_size=(4, 4), strides=(2, 2), padding="same")
+           filters=ngf * 8, kernel_size=(4, 4), strides=(2, 2), padding="same",
+           kernel_initializer=k_init)
 
     @tf.function
     def call(self, inputs):
@@ -54,7 +60,8 @@ class Decoder(Layer):
        self.conv_6 = Conv_BatchNorm_ReLU(ngf * 2, used_in_encoder)
        self.conv_7 = Conv_BatchNorm_ReLU(ngf * 1, used_in_encoder)
        self.conv_8 = Conv2DTranspose(
-            filters=output_nc, kernel_size=(4, 4), strides=(2, 2), padding="same")
+            filters=output_nc, kernel_size=(4, 4), strides=(2, 2), padding="same",
+            kernel_initializer=k_init)
 
     @tf.function
     def call(self, inputs):
@@ -84,11 +91,9 @@ class AutoEncoder(tf.keras.Model):
     @tf.function
     def loss_function(self, disc_fake_outputs, generated_output, ground_truth):
         """
-        generated_outputs = self.call(inputs)
-        disc_fake_outputs = discriminator(inputs, generated_outputs)
         return tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.zeros_like(logits_fake), y_pred=disc_fake_outputs)) + \
         """
-        return tf.math.scalar_mul(tf.constant(1.0), tf.norm(generated_output - ground_truth, 1))
+        return tf.math.scalar_mul(tf.constant(100.0), tf.norm(generated_output - ground_truth, ord=1))
 
 # Code adapted from: 
 # https://github.com/phillipi/pix2pix/blob/master/models.lua
@@ -96,11 +101,11 @@ class UnetGenerator(tf.keras.Model):
     """
     Class for the pix2pix generator.
     """
-    def __init__(self, input_nc, output_nc, ngf=64, _lambda=100.0):
+    def __init__(self, input_nc, output_nc, ngf=64):
         super(UnetGenerator, self).__init__()
-        self._lambda = _lambda
         self.conv_1 = Conv2D(
-           filters=ngf, kernel_size=(4, 4), strides=(2, 2), padding="same", input_shape=(256, 256, input_nc))
+           filters=ngf, kernel_size=(4, 4), strides=(2, 2), padding="same", input_shape=(256, 256, input_nc),
+           kernel_initializer=k_init)
         self.conv_2 = Conv_BatchNorm_ReLU(ngf * 2, used_in_encoder=True)
         self.conv_3 = Conv_BatchNorm_ReLU(ngf * 4, used_in_encoder=True)
         self.conv_4 = Conv_BatchNorm_ReLU(ngf * 8, used_in_encoder=True)
@@ -108,7 +113,8 @@ class UnetGenerator(tf.keras.Model):
         self.conv_6 = Conv_BatchNorm_ReLU(ngf * 8, used_in_encoder=True)
         self.conv_7 = Conv_BatchNorm_ReLU(ngf * 8, used_in_encoder=True)
         self.conv_8 = Conv2D(
-           filters=ngf * 8, kernel_size=(4, 4), strides=(2, 2), padding="same")
+           filters=ngf * 8, kernel_size=(4, 4), strides=(2, 2), padding="same",
+           kernel_initializer=k_init)
 
         self.deconv_8 = Conv_BatchNorm_ReLU(ngf * 8, used_in_encoder=False, use_dropout=True)
         self.deconv_7 = Conv_BatchNorm_ReLU(ngf * 8, used_in_encoder=False, use_dropout=True)
@@ -118,7 +124,8 @@ class UnetGenerator(tf.keras.Model):
         self.deconv_3 = Conv_BatchNorm_ReLU(ngf * 2, used_in_encoder=False)
         self.deconv_2 = Conv_BatchNorm_ReLU(ngf * 1, used_in_encoder=False)
         self.deconv_1 = Conv2DTranspose(
-            filters=output_nc, kernel_size=(4, 4), strides=(2, 2), padding="same")
+            filters=output_nc, kernel_size=(4, 4), strides=(2, 2), padding="same",
+            kernel_initializer=k_init)
 
     @tf.function
     def call(self, images):
@@ -144,8 +151,6 @@ class UnetGenerator(tf.keras.Model):
     @tf.function
     def loss_function(self, disc_fake_outputs, generated_output, ground_truth):
         """
-        generated_outputs = self.call(inputs)
-        disc_fake_outputs = discriminator(inputs, generated_outputs)
         return tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.zeros_like(logits_fake), y_pred=disc_fake_outputs)) + \
         """
-        return tf.math.scalar_mul(tf.constant(1.0), tf.norm(generated_output - ground_truth, 1))
+        return tf.math.scalar_mul(tf.constant(100.0), tf.norm(generated_output - ground_truth, ord=1))
