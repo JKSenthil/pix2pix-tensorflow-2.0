@@ -177,7 +177,7 @@ def train(generator, discriminator, dataset_iterator, manager):
     y_true, y_pred = [], []
     # Loop over our data until we run out
     for iteration, image_pairs in enumerate(dataset_iterator):
-        image_pairs = random_jitter_and_mirroring(image_pairs)
+        # image_pairs = random_jitter_and_mirroring(image_pairs) the Dataset is preprocessed.
         input_, ground_truth = tf.split(image_pairs, 2, 2)
         with tf.GradientTape(persistent=True) as tape:
             generated_output = generator(input_)
@@ -228,8 +228,8 @@ def main():
     dataset_iterator = load_image_batch(args.img_dir + '/' + args.mode, batch_size=args.batch_size, n_threads=args.num_data_threads)
 
     # Initialize generator and discriminator models
-    # generator = UnetGenerator(3, 3)
-    generator = AutoEncoder(3, 3)
+    generator = UnetGenerator(3, 3)
+    # generator = AutoEncoder(3, 3)
     discriminator = make_discriminator_model()
 
     # For saving/loading models
