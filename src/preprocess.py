@@ -2,10 +2,13 @@ import numpy as np
 import tensorflow as tf
 import os
 
+from imageio import imwrite
+from random import uniform
+
 
 # Sets up tensorflow graph to load images
 # (This is the version using new-style tf.data API)
-def load_image_batch(dir_name, batch_size=128, shuffle_buffer_size=250000, n_threads=2):
+def load_image_batch(dir_name, batch_size, shuffle_buffer_size=250000, n_threads=2):
     """
     Given a directory and a batch size, the following method returns a dataset iterator that can be queried for 
     a batch of images
@@ -56,3 +59,35 @@ def load_image_batch(dir_name, batch_size=128, shuffle_buffer_size=250000, n_thr
 
     # Return an iterator over this dataset
     return dataset
+
+def random_jitter_and_mirroring(images):
+    input_, ground_truth = tf.split(images, 2, 2)
+    batch_size, crop_height, crop_width, _ = input_.shape
+    assert(crop_height == 256 and crop_width == 256)
+
+    if uniform(0, 1) < 0.5:
+        tf.image.flip_left_right(input_) 
+        tf.image.flip_left_right(ground_truth) 
+
+    resized_input = tf.image.resize(input_, tf.constant([286, 286]))
+    resized_ground_truth = tf.image.resize(ground_truth, tf.constant([286, 286]))
+    cropped_input = tf.image.random_crop(resized_input, [batch_size, crop_height, crop_width, 3])
+    cropped_ground_truth = tf.image.random_crop(resized_ground_truth, [batch_size, crop_height, crop_width, 3])
+    return cropped_input, cropped_ground_truth
+
+def main():
+    img_dir = "../../UnetGenerator/data/facades"
+    out_dir = "./output"
+    batchs = load_image_batch(img_dir + '/test', 1)
+    for i, img in enumerate(batchs):
+        assert(np.all(-1.0 <= img) and np.all(img <= 1.0))
+        img = tf.concat(random_jitter_and_mirroring(img), 2).numpy()
+        # Rescale the image from (-1, 1) to (0, 255)
+        img = ((img / 2) + 0.5) * 255
+        img = img.astype(np.uint8)
+        # Save images to disk
+        s = out_dir+'/'+str(i)+'.png'
+        imwrite(s, img[0])
+
+if __name__ == '__main__':
+   main()

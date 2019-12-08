@@ -2,18 +2,18 @@ import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Activation, Dense, Flatten, Conv2D, BatchNormalization, LeakyReLU, \
     Reshape, Conv2DTranspose, LeakyReLU, Layer
-from preprocess import load_image_batch
 import tensorflow_gan as tfgan
 import tensorflow_hub as hub
 
 import numpy as np
 
-from imageio import imwrite
 import os
 import argparse
 import time
 
+from imageio import imwrite
 from generator import UnetGenerator, AutoEncoder
+from preprocess import load_image_batch, random_jitter_and_mirroring
 
 # Killing optional CPU driver warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -25,10 +25,7 @@ print("GPU Available: ", gpu_available)
 
 parser = argparse.ArgumentParser(description='DCGAN')
 
-parser.add_argument('--train-dir', type=str, default='./data/facades/train',
-                            help='Data where training images live')
-
-parser.add_argument('--test-dir', type=str, default='./data/facades/test',
+parser.add_argument('--img-dir', type=str, default='../../UnetGenerator/data/facades',
                             help='Data where testing images live')
 
 parser.add_argument('--out-dir', type=str, default='./output',
@@ -49,7 +46,7 @@ parser.add_argument('--batch-size', type=int, default=1,
 parser.add_argument('--num-data-threads', type=int, default=2,
                     help='Number of threads to use when loading & pre-processing training images')
 
-parser.add_argument('--num-epochs', type=int, default=10,
+parser.add_argument('--num-epochs', type=int, default=200,
                     help='Number of passes through the training data to make before stopping')
 
 parser.add_argument('--learn-rate', type=float, default=0.0002,
@@ -180,7 +177,8 @@ def train(generator, discriminator, dataset_iterator, manager):
     y_true, y_pred = [], []
     # Loop over our data until we run out
     for iteration, image_pairs in enumerate(dataset_iterator):
-        ground_truth, input_ = tf.split(image_pairs, 2, 2)
+        image_pairs = random_jitter_and_mirroring(image_pairs)
+        input_, ground_truth = tf.split(image_pairs, 2, 2)
         with tf.GradientTape(persistent=True) as tape:
             generated_output = generator(input_)
             lossG = generator.loss_function(None, generated_output, ground_truth)
@@ -212,9 +210,9 @@ def test(generator, dataset_iterator):
     """
     for i, image_pairs in enumerate(dataset_iterator):
         # Sample a batch of random images
-        _, input_ = tf.split(image_pairs, 2, 2)
+        input_, ground_truth = tf.split(image_pairs, 2, 2)
         ### Below, we've already provided code to save these generated images to files on disk
-        img = tf.concat([input_, generator(input_)], 2).numpy()
+        img = tf.concat([input_, ground_truth, generator(input_)], 2).numpy()
         assert(np.all(-1.0 <= img) and np.all(img <= 1.0))
         # Rescale the image from (-1, 1) to (0, 255)
         img = ((img / 2) + 0.5) * 255
@@ -227,10 +225,7 @@ def test(generator, dataset_iterator):
 
 def main():
     # Load a batch of images (to feed to the discriminator)
-    if args.mode == 'train':
-        dataset_iterator = load_image_batch(args.train_dir, batch_size=args.batch_size, n_threads=args.num_data_threads)
-    else:    
-        dataset_iterator = load_image_batch(args.test_dir, batch_size=args.batch_size, n_threads=args.num_data_threads)
+    dataset_iterator = load_image_batch(args.img_dir + '/' + args.mode, batch_size=args.batch_size, n_threads=args.num_data_threads)
 
     # Initialize generator and discriminator models
     # generator = UnetGenerator(3, 3)
