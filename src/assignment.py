@@ -139,7 +139,7 @@ def train(generator, discriminator, dataset_iterator, manager):
     # Loop over our data until we run out
     for iteration, image_pairs in enumerate(dataset_iterator):
         # image_pairs = random_jitter_and_mirroring(image_pairs) the Dataset is preprocessed.
-        input_, ground_truth = tf.split(image_pairs, 2, 2)
+        ground_truth, input_ = tf.split(image_pairs, 2, 2)
         with tf.GradientTape(persistent=True) as tape:
             generated_output = generator(input_)
             disc_real_output = discriminator(input_, ground_truth)
@@ -161,7 +161,7 @@ def train(generator, discriminator, dataset_iterator, manager):
             fids.append(fid_function(tf.concat(real_image_batch, 0), tf.concat(generated_image_batch, 0)))
             real_image_batch.clear()
             generated_image_batch.clear()
-            print('**** (INCEPTION DISTANCE, lossG): (%g, %g) ****' % (fids[-1], lossG))
+            print('**** (INCEPTION DISTANCE, lossD, lossG): (%g, %g, %g) ****' % (fids[-1], lossD, lossG))
     print("---- Time Taken for One Epoch: %g ----" % (time.time() - start_time))
     return sum(fids) / float(len(fids))
 
@@ -176,7 +176,7 @@ def test(generator, dataset_iterator):
     """
     for i, image_pairs in enumerate(dataset_iterator):
         # Sample a batch of random images
-        input_, ground_truth = tf.split(image_pairs, 2, 2)
+        ground_truth, input_  = tf.split(image_pairs, 2, 2)
         ### Below, we've already provided code to save these generated images to files on disk
         img = tf.concat([input_, ground_truth, generator(input_)], 2).numpy()
         assert(np.all(-1.0 <= img) and np.all(img <= 1.0))
