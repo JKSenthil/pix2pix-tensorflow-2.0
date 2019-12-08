@@ -139,8 +139,9 @@ def train(generator, discriminator, dataset_iterator, manager):
     # Loop over our data until we run out
     for iteration, image_pairs in enumerate(dataset_iterator):
         if image_pairs.shape[1] != 256:
-            image_pairs = random_jitter_and_mirroring(image_pairs)
-        ground_truth, input_ = tf.split(image_pairs, 2, 2)
+            ground_truth, input_ = random_jitter_and_mirroring(image_pairs)
+        else:
+            ground_truth, input_ = tf.split(image_pairs, 2, 2)
         with tf.GradientTape(persistent=True) as tape:
             generated_output = generator(input_)
             disc_real_output = discriminator(input_, ground_truth)
