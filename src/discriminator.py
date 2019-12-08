@@ -6,7 +6,7 @@ from generator import Conv_BatchNorm_ReLU
 k_init = tf.keras.initializers.TruncatedNormal(stddev=0.02)
 g_init = tf.keras.initializers.TruncatedNormal(mean=1.0, stddev=0.02)
 
-# Code adapted from the official Torch implementat of pix2pix:
+# Code adapted from the official Torch implementation of pix2pix:
 # https://github.com/phillipi/pix2pix/blob/master/models.lua
 class PixelGAN(tf.keras.Model):
     def __init__(self, input_nc, output_nc, ndf=64):

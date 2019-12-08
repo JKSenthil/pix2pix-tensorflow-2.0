@@ -90,7 +90,7 @@ class AutoEncoder(tf.keras.Model):
 
     @tf.function
     def loss_function(self, disc_fake_output, generated_output, ground_truth):
-        return tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.ones_like(disc_fake_output), y_pred=disc_fake_outputs)) + \
+        return tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.ones_like(disc_fake_output), y_pred=disc_fake_output)) + \
             tf.math.scalar_mul(tf.constant(100.0), tf.norm(generated_output - ground_truth, ord=1))
 
 # Code adapted from: 
