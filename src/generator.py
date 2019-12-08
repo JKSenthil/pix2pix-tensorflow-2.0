@@ -99,10 +99,10 @@ class UnetGenerator(tf.keras.Model):
     """
     Class for the pix2pix generator.
     """
-    def __init__(self, input_nc, output_nc, image_width, ngf=64):
+    def __init__(self, input_nc, output_nc, ngf=64):
         super(UnetGenerator, self).__init__()
         self.conv_1 = Conv2D(
-           filters=ngf, kernel_size=(4, 4), strides=(2, 2), padding="same", input_shape=(image_width, image_width, input_nc),
+           filters=ngf, kernel_size=(4, 4), strides=(2, 2), padding="same", input_shape=(256, 256, input_nc),
            kernel_initializer=k_init)
         self.conv_2 = Conv_BatchNorm_ReLU(ngf * 2, used_in_encoder=True)
         self.conv_3 = Conv_BatchNorm_ReLU(ngf * 4, used_in_encoder=True)

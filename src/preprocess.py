@@ -62,8 +62,9 @@ def load_image_batch(dir_name, batch_size, shuffle_buffer_size=250000, n_threads
 
 def random_jitter_and_mirroring(images):
     input_, ground_truth = tf.split(images, 2, 2)
-    batch_size, crop_height, crop_width, _ = input_.shape
-    assert(crop_height == 256 and crop_width == 256)
+    batch_size = input_.shape[0]
+    crop_height = 256 
+    crop_width  = 256
 
     if uniform(0, 1) < 0.5:
         tf.image.flip_left_right(input_) 

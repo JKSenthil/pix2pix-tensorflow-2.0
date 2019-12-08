@@ -41,8 +41,8 @@ parser.add_argument('--mode', type=str, default='train',
 parser.add_argument('--restore-checkpoint', action='store_true',
                             help='Use this flag if you want to resuming training from a previously-saved checkpoint')
 
-parser.add_argument('--image-width', type=int, default=256,
-                            help='width of the images')
+parser.add_argument('--z-dim', type=int, default=100,
+                            help='Dimensionality of the latent space')
 
 parser.add_argument('--batch-size', type=int, default=1,
                             help='Sizes of image batches fed through the network')
@@ -138,7 +138,8 @@ def train(generator, discriminator, dataset_iterator, manager):
     real_image_batch, generated_image_batch = [], []
     # Loop over our data until we run out
     for iteration, image_pairs in enumerate(dataset_iterator):
-        # image_pairs = random_jitter_and_mirroring(image_pairs) the Dataset is preprocessed.
+        if image_pairs.shape[1] != 256:
+            image_pairs = random_jitter_and_mirroring(image_pairs)
         ground_truth, input_ = tf.split(image_pairs, 2, 2)
         with tf.GradientTape(persistent=True) as tape:
             generated_output = generator(input_)
@@ -147,10 +148,10 @@ def train(generator, discriminator, dataset_iterator, manager):
 
             lossG = generator.loss_function(disc_fake_output, generated_output, ground_truth)
             lossD = discriminator.loss_function(disc_real_output, disc_fake_output)
-
-        optimize(tape, discriminator, lossD)
+        
         for _ in range(args.num_gen_updates):
             optimize(tape, generator, lossG)
+        optimize(tape, discriminator, lossD)
 
         real_image_batch.append(ground_truth)
         generated_image_batch.append(generated_output)
@@ -195,8 +196,8 @@ def main():
     dataset_iterator = load_image_batch(args.img_dir + '/' + args.mode, batch_size=args.batch_size, n_threads=args.num_data_threads)
 
     # Initialize generator and discriminator models
-    generator = UnetGenerator(args.input_nc, args.output_nc, args.image_width)
-    discriminator = PatchGAN(args.input_nc, args.output_nc, args.image_width)
+    generator = UnetGenerator(args.input_nc, args.output_nc)
+    discriminator = PatchGAN(args.input_nc, args.output_nc)
 
     # For saving/loading models
     checkpoint_prefix = os.path.join(args.checkpoint_dir, "ckpt")
