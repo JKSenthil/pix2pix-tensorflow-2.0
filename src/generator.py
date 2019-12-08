@@ -89,11 +89,9 @@ class AutoEncoder(tf.keras.Model):
         return result
 
     @tf.function
-    def loss_function(self, disc_fake_outputs, generated_output, ground_truth):
-        """
-        return tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.zeros_like(logits_fake), y_pred=disc_fake_outputs)) + \
-        """
-        return tf.math.scalar_mul(tf.constant(100.0), tf.norm(generated_output - ground_truth, ord=1))
+    def loss_function(self, disc_fake_output, generated_output, ground_truth):
+        return tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.ones_like(disc_fake_output), y_pred=disc_fake_outputs)) + \
+            tf.math.scalar_mul(tf.constant(100.0), tf.norm(generated_output - ground_truth, ord=1))
 
 # Code adapted from: 
 # https://github.com/phillipi/pix2pix/blob/master/models.lua
@@ -149,8 +147,6 @@ class UnetGenerator(tf.keras.Model):
         return tf.math.tanh(self.deconv_1(decoder_output))
 
     @tf.function
-    def loss_function(self, disc_fake_outputs, generated_output, ground_truth):
-        """
-        return tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.zeros_like(logits_fake), y_pred=disc_fake_outputs)) + \
-        """
-        return tf.math.scalar_mul(tf.constant(100.0), tf.norm(generated_output - ground_truth, ord=1))
+    def loss_function(self, disc_fake_output, generated_output, ground_truth):
+        return tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true=tf.ones_like(disc_fake_output), y_pred=disc_fake_outputs)) + \
+            tf.math.scalar_mul(tf.constant(100.0), tf.norm(generated_output - ground_truth, ord=1))

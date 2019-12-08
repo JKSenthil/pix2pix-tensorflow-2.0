@@ -25,11 +25,14 @@ print("GPU Available: ", gpu_available)
 
 parser = argparse.ArgumentParser(description='DCGAN')
 
-parser.add_argument('--img-dir', type=str, default='../../UnetGenerator/data/facades',
+parser.add_argument('--img-dir', type=str, default='../data/facades',
                             help='Data where testing images live')
 
-parser.add_argument('--out-dir', type=str, default='./output',
+parser.add_argument('--out-dir', type=str, default='../output',
                             help='Data where sampled output images will be written')
+
+parser.add_argument('--checkpoint-dir', type=str, default='../checkpoints',
+                            help='Data where checkpoints will be written')
 
 parser.add_argument('--mode', type=str, default='train',
                             help='Can be "train" or "test"')
@@ -61,24 +64,13 @@ parser.add_argument('--num-gen-updates', type=int, default=2,
 parser.add_argument('--log-every', type=int, default=128,
                     help='Print losses after every [this many] training iterations')
 
-parser.add_argument('--save-every', type=int, default=50,
+parser.add_argument('--save-every', type=int, default=100,
                     help='Save the state of the network after every [this many] training iterations')
 
 parser.add_argument('--device', type=str, default='GPU:0' if gpu_available else 'CPU:0',
                     help='specific the device of computation eg. CPU:0, GPU:0, GPU:1, GPU:2, ... ')
 
 args = parser.parse_args()
-
-## --------------------------------------------------------------------------------------
-
-# Numerically stable logarithm function
-def log(x):
-    """
-    Finds the stable log of x
-
-    :param x: 
-    """
-    return tf.math.log(tf.maximum(x, 1e-5))
 
 ## --------------------------------------------------------------------------------------
 
@@ -174,27 +166,32 @@ def train(generator, discriminator, dataset_iterator, manager):
     """
     start_time = time.time()
     fids = []
-    y_true, y_pred = [], []
+    real_image_batch, generated_image_batch = [], []
     # Loop over our data until we run out
     for iteration, image_pairs in enumerate(dataset_iterator):
         # image_pairs = random_jitter_and_mirroring(image_pairs) the Dataset is preprocessed.
         input_, ground_truth = tf.split(image_pairs, 2, 2)
         with tf.GradientTape(persistent=True) as tape:
             generated_output = generator(input_)
-            lossG = generator.loss_function(None, generated_output, ground_truth)
+            disc_real_output = discriminator(input_, ground_truth)
+            disc_fake_output = discriminator(input_, generated_ouput)
+
+            lossG = generator.loss_function(disc_fake_output, generated_output, ground_truth)
+            lossD = discriminator.loss_function(disc_real_output, disc_fake_output)
 
         optimize(tape, generator, lossG)
-        # otimize(tape, discriminator, lossD)
-        y_true.append(ground_truth)
-        y_pred.append(generated_output)
+        optimize(tape, discriminator, lossD)
+
+        real_image_batch.append(ground_truth)
+        generated_image_batch.append(generated_output)
         # Save
         if iteration > 0 and iteration % args.save_every == 0:
             manager.save()
             # Calculate inception distance and track the fid in order
             # to return the average
-            fids.append(fid_function(tf.concat(y_true, 0), tf.concat(y_pred, 0)))
-            y_true.clear()
-            y_pred.clear()
+            fids.append(fid_function(tf.concat(real_image_batch, 0), tf.concat(generated_image_batch, 0)))
+            real_image_batch.clear()
+            generated_image_batch.clear()
             print('**** (INCEPTION DISTANCE, lossG): (%g, %g) ****' % (fids[-1], lossG))
     print("---- Time Taken for One Epoch: %g ----" % (time.time() - start_time))
     return sum(fids) / float(len(fids))
@@ -233,8 +230,7 @@ def main():
     discriminator = make_discriminator_model()
 
     # For saving/loading models
-    checkpoint_dir = './checkpoints'
-    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
+    checkpoint_prefix = os.path.join(args.checkpoint_dir, "ckpt")
     checkpoint = tf.train.Checkpoint(generator=generator, discriminator=discriminator)
     manager = tf.train.CheckpointManager(checkpoint, checkpoint_dir, max_to_keep=3)
     # Ensure the output directory exists

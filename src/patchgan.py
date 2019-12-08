@@ -1,26 +1,18 @@
-import Generator.py
 import tensorflow as tf
 from tensorflow.keras import Model
 import numpy as np
+
 """
 Class for discriminator.
 """
-
-def log(x):
-    """
-    Finds the stable log of x
-    :param x:
-    """
-    return tf.math.log(tf.maximum(x, 1e-5))
-
-class patchgan(tf.keras.Model):
+class PatchGAN(tf.keras.Model):
     def __init__(self):
         """
         Definition of patchgan discriminator model.
         Has a number of layers, including several convolutional layers, batch normalization,
         final dense layer, etc.
         """
-        super(discriminator, self).__init__()
+        super(PatchGAN, self).__init__()
         #TODO Add series of layers using tf.keras.layers
         self.conv1 = tf.keras.layers.Conv2D(64, kernel_size=(4, 4), strides=(2, 2), padding="same")
         self.conv2 = tf.keras.layers.Conv2D(128, kernel_size=(4, 4), strides=(2, 2), padding="same")
