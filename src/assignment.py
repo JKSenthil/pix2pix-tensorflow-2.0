@@ -41,6 +41,12 @@ parser.add_argument('--mode', type=str, default='train',
 parser.add_argument('--restore-checkpoint', action='store_true',
                             help='Use this flag if you want to resuming training from a previously-saved checkpoint')
 
+parser.add_argument('--use-auto-encoder', action='store_true',
+                            help='Use this flag if you want to use AutoEncoder as the generator')
+
+parser.add_argument('--use-pixel-gan', action='store_true',
+                            help='Use this flag if you want to use PixelGAN as the generator')
+
 parser.add_argument('--z-dim', type=int, default=100,
                             help='Dimensionality of the latent space')
 
@@ -200,8 +206,15 @@ def main():
     dataset_iterator = load_image_batch(args.img_dir + '/' + args.mode, batch_size=args.batch_size, n_threads=args.num_data_threads)
 
     # Initialize generator and discriminator models
-    generator = UnetGenerator(args.input_nc, args.output_nc)
-    discriminator = PatchGAN(args.input_nc, args.output_nc)
+    if args.use_auto_encoder:
+        generator = AutoEncoder(args.input_nc, args.output_nc)
+    else:
+        generator = UnetGenerator(args.input_nc, args.output_nc)
+
+    if args.use_pixel_gan:
+        discriminator = PixelGAN(args.input_nc, args.output_nc)
+    else:
+        discriminator = PatchGAN(args.input_nc, args.output_nc)
 
     # For saving/loading models
     checkpoint_prefix = os.path.join(args.checkpoint_dir, "ckpt")
