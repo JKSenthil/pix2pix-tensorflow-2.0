@@ -42,10 +42,10 @@ parser.add_argument('--restore-checkpoint', action='store_true',
                             help='Use this flag if you want to resuming training from a previously-saved checkpoint')
 
 parser.add_argument('--use-auto-encoder', action='store_true',
-                            help='Use this flag if you want to use AutoEncoder as the generator')
+                            help='Use this flag if you want to use AutoEncoder as the generator. Otherwise UnetGenerator is used.')
 
 parser.add_argument('--use-pixel-gan', action='store_true',
-                            help='Use this flag if you want to use PixelGAN as the generator')
+                            help='Use this flag if you want to use PixelGAN as the discriminator. Otherwise PatchGAN is used.')
 
 parser.add_argument('--z-dim', type=int, default=100,
                             help='Dimensionality of the latent space')
